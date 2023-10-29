@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Object Detection</title>
+</head>
+<body>
+    <video id="webcam" autoplay></video>
+    <canvas id="output"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('output');
+        const ctx = canvas.getContext('2d');
+        
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ 'audio': false, 'video': true });
+            video.srcObject = stream;
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve(video);
+                };
+            });
+        }
+
+        async function loadModel() {
+            return cocoSsd.load();
+        }
+
+        async function detectObjects(model, video) {
+            video.play();
+
+            const result = await model.detect(video);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            result.forEach((prediction) => {
+                const [x, y, width, height] = prediction.bbox;
+                ctx.beginPath();
+                ctx.rect(x, y, width, height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'red';
+                ctx.fillStyle = 'red';
+                ctx.stroke();
+                ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y);
+            });
+
+            requestAnimationFrame(() => {
+                detectObjects(model, video);
+            });
+        }
+
+        async function run() {
+            const model = await loadModel();
+            const video = await setupCamera();
+            video.width = video.videoWidth;
+            video.height = video.videoHeight;
+            canvas.width = video.width;
+            canvas.height = video.height;
+            detectObjects(model, video);
+        }
+
+        run();
+    </script>
+</body>
+</html>
